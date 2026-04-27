@@ -1,69 +1,127 @@
-# ECG Abnormal Detection Example
+# ECG Anomaly Detection and FHE Encrypted Inference System Documentation
 
-This directory contains an end-to-end encrypted inference example based on the MIT-BIH Arrhythmia Database, which fully demonstrates how to adapt a lightweight CNN-based ECG classification model into a privacy-preserving encrypted inference service using the LattiAI Fully Homomorphic Encryption (FHE) framework.
+# 1. Environment Configuration
 
-| Example Name |   Core Model   |           Dataset           | Input Size  | Encryption Scheme | Bootstrapping |
-| :----------: | :------------: | :-------------------------: | :---------: | :---------------: | :-----------: |
-| **test_ecg** | TinyECGTwoConv | MIT-BIH Arrhythmia Database | 1 x 16 x 16 |  CKKS (N=16384)   |      No       |
+## 1.1 Hardware Requirements
 
-## 1. Model Description
+| Item             | Requirement                                                  |
+| :--------------- | :----------------------------------------------------------- |
+| CPU              | ≥ 4 cores                                                    |
+| Memory           | ≥ 8GB (16GB recommended)                                     |
+| GPU              | Not required                                                 |
+| Operating System | Linux (ciphertext inference with operator replacement) / Windows (data processing) |
 
-The **TinyECGTwoConv** adopted in this example is an ultra-lightweight CNN model customized for the computational characteristics of FHE. Its core design and advantages are as follows:
+------
 
-- **Network Architecture**: 2 convolutional layers (1→4→8 channels) + 1 ReLU activation function + Global Average Pooling layer + 1 fully connected classification head
-- **Parameter Scale**: Only 340 trainable parameters, with extremely low computational depth, which greatly reduces noise accumulation and time consumption during homomorphic computation
-- **Classification Performance**: Achieves 93.25% classification accuracy on the MIT-BIH test set, with 84.45% recall for abnormal heartbeats
 
-## 2. Data Preparation
 
-This example uses the **MIT-BIH Arrhythmia Database (version 1.0.0)** as the experimental dataset, which is an authoritative public dataset in the field of arrhythmia analysis.
+## 1.2 Software Environment
 
-- **Official Data Source**: https://physionet.org/content/mitdb/1.0.0/
+| Software     | Version Requirement |
+| :----------- | :------------------ |
+| Python       | ≥ 3.8               |
+| PyTorch      | ≥ 1.10              |
+| NumPy        | ≥ 1.20              |
+| scikit-learn | ≥ 1.0               |
+| wfdb         | ≥ 4.0               |
+| tqdm         | Any stable version  |
 
-- Preprocessing Pipeline
+------
 
-  1. Based on the R-wave peak annotations, extract single heartbeat segments of 256 sampling points centered on the R-peak
-  2. Perform Z-score normalization on the heartbeat segments to eliminate amplitude differences
-  3. Reshape the 1D 256-dimensional signal into a 16×16 2D matrix to fit the model input format
-  4. Binary label encoding: normal heartbeats are labeled as 0, and abnormal heartbeats are labeled as 1
 
-  
 
-- **Dataset Balancing**: The original dataset has a positive-negative sample ratio of approximately 9:1. Only the training set is processed with oversampling to make the positive-negative sample ratio 1:1; the validation set and test set retain the original distribution to ensure the objectivity of evaluation results.
+## 1.3 FHE Environment
 
-- **Preprocessing Output**: Generate the `processed_over_1to1/` directory, which contains npy format data of the training/validation/test sets and dataset metadata files.
+latti-ai library, official repository: [cipherflow-fhe/latti-ai: A framework for performing AI model inference on encrypted data.](https://github.com/cipherflow-fhe/latti-ai)
 
-## 3. Running Instructions
+# 2. Dependencies
 
-### Prerequisites
+## 2.1 Data Dependencies
 
-1. You have completed the compilation and build of the LattiAI main project, and can normally call the `./build/examples/inference` inference binary file
-2. You have completed the download and preprocessing of the MIT-BIH dataset (can be done with one click via `data_prepare_win.py`)
-3. You have completed model training, FHE operator adaptation and compilation, and generated the `task/` directory required for encrypted inference
+| Item          | Content                                    |
+| :------------ | :----------------------------------------- |
+| Dataset       | MIT-BIH Arrhythmia Database                |
+| URL           | https://physionet.org/content/mitdb/1.0.0/ |
+| Sampling Rate | 360Hz                                      |
+| Data Type     | ECG + annotations                          |
 
-### Quick Start (Inference Only)
+------
 
-If you have prepared the pre-compiled `task/` directory, you can directly execute the following commands to complete encrypted inference:
+## 2.2 Data Processing Logic
+
+| Step           | Description                      |
+| :------------- | :------------------------------- |
+| R-peak slicing | 256 points (99 left + 156 right) |
+| Normalization  | Z-score                          |
+| Reshape        | 1×256 → 16×16                    |
+| Input format   | (1,16,16)                        |
+
+------
+
+## 2.3 Label Definition
+
+| Class    | Label | Symbol                       |
+| :------- | :---- | :--------------------------- |
+| Normal   | 0     | N, L, R, e, j                |
+| Abnormal | 1     | A, a, J, S, V, E, F, /, f, Q |
+
+------
+
+## 2.4 Data Imbalance Description
+
+| Dataset | Normal | Abnormal | Ratio   |
+| :------ | :----- | :------- | :------ |
+| Train   | 72068  | 8485     | 8.5 : 1 |
+| Val     | 9009   | 1060     | 8.5 : 1 |
+| Test    | 9009   | 1061     | 8.5 : 1 |
+
+------
+
+## 2.5 Handling Strategy
+
+- Training set: **Oversampling → 1:1**
+- Validation / Test: **Keep original distribution**
+
+Reason: Prevent model bias toward the normal class while ensuring realistic evaluation.
+
+# 3. Running Steps
+
+## Overall Pipeline
 
 ```
-# Generate low-level FHE execution instructions
-python inference/interface/gen_mega_ag.py --task-dir ./examples/my_ecg001/runs/exp_over009/task
-
-# Run single-sample encrypted inference (CPU mode, with result verification)
-./build/examples/inference --task-dir ./examples/my_ecg001/runs/exp_over009/task --input ./examples/my_ecg001/runs/exp_over009/task/client/ecg_input.csv --verify
-
-# Run single-sample encrypted inference (GPU mode, with result verification, GPU build required)
-./build/examples/inference --task-dir ./examples/my_ecg001/runs/exp_over009/task --input ./examples/my_ecg001/runs/exp_over009/task/client/ecg_input.csv --verify --gpu
+Data Processing → Plaintext Training → FHE Adaptation → Model Compilation → Encrypted Inference
 ```
 
-### Full Pipeline (From Training to Inference)
+------
 
-If you need to execute the complete pipeline from scratch: **data preprocessing → model training → FHE adaptation → model compilation → encrypted inference**, follow the steps below:
-
-#### 3.1 Plaintext Baseline Model Training
+## 3.1 Data Processing
 
 ```
-python examples/my_ecg001/train.py \
+python data_prepare_win.py
+```
+
+Output:
+
+```
+processed_over_1to1/
+├── X_train.npy
+├── y_train.npy
+├── X_val.npy
+├── y_val.npy
+├── X_test.npy
+├── y_test.npy
+```
+
+------
+
+Note: Data processing can run on Windows or Linux. Modify the code accordingly and ensure paths match.
+
+Note: Due to GitHub file upload limits, the datasets used in this experiment have been uploaded to email. It is recommended to obtain the `processed_over_1to1.zip` file, extract it, and place it directly under `/test_ecg/processed_over_1to1`.。
+
+## 3.2 Plaintext Model Training
+
+```
+python examples/test_ecg/train.py \
   --model-name two_conv \
   --epochs 20 \
   --batch-size 32 \
@@ -71,110 +129,175 @@ python examples/my_ecg001/train.py \
   --num-workers 4 \
   --torch-num-threads 4 \
   --num-classes 2 \
-  --processed-dir ./examples/my_ecg001/processed_over_1to1 \
-  --output-dir ./examples/my_ecg001/runs/exp_over009/model \
+  --processed-dir ./examples/test_ecg/processed_over_1to1 \
+  --output-dir ./examples/test_ecg/runs/exp_over/model \
   --input-shape 1 16 16
 ```
 
-#### 3.2 FHE Operator Replacement and Model Fine-tuning
+------
+
+## 3.3 FHE Model Adaptation (Poly Replacement)
 
 ```
-python examples/my_ecg001/train.py \
+python examples/test_ecg/train.py \
   --poly_model_convert \
   --model-name two_conv \
-  --pretrained ./examples/my_ecg001/runs/exp_over009/model/train_baseline.pth \
+  --pretrained ./examples/test_ecg/runs/exp_over/model/train_baseline.pth \
   --epochs 3 \
   --batch-size 16 \
   --lr 0.0005 \
   --num-workers 4 \
   --torch-num-threads 4 \
   --num-classes 2 \
-  --processed-dir ./examples/my_ecg001/processed_over_1to1 \
-  --output-dir ./examples/my_ecg001/runs/exp_over009/model \
-  --export-dir ./examples/my_ecg001/runs/exp_over009/task/server \
+  --processed-dir ./examples/test_ecg/processed_over_1to1 \
+  --output-dir ./examples/test_ecg/runs/exp_over/model \
+  --export-dir ./examples/test_ecg/runs/exp_over/task/server \
   --input-shape 1 16 16 \
   --degree 4 \
   --upper-bound 3.0 \
   --poly-module RangeNormPoly2d
 ```
 
-#### 3.3 Model Compilation
+------
+
+## 3.4 Model Compilation
 
 ```
 python training/run_compile.py \
-  --input ./examples/my_ecg001/runs/exp_over009/model/trained_poly.onnx \
-  --output ./examples/my_ecg001/runs/exp_over009 \
+  --input ./examples/test_ecg/runs/exp_over/model/trained_poly.onnx \
+  --output ./examples/test_ecg/runs/exp_over \
   --style multiplexed
 ```
 
-#### 3.4 Generate Low-level FHE Execution Instructions
+------
+
+## 3.5 Generate Execution Configuration
 
 ```
-python inference/interface/gen_mega_ag.py --task-dir ./examples/my_ecg001/runs/exp_over009/task
+python inference/interface/gen_mega_ag.py --task-dir ./examples/test_ecg/runs/exp_over/task
 ```
 
-#### 3.5 Generate Batch Test Samples
+------
+
+## 3.6 Sample Plaintext Inference
 
 ```
-python examples/my_ecg001/prepare_ten_samples.py
+python test_ecg/prepare_ten_samples.py \
+  --processed-dir ./test_ecg/processed_over_1to1 \
+  --baseline-ckpt ./test_ecg/runs/exp_over/model/train_baseline.pth \
+  --task-dir ./test_ecg/runs/exp_over/task \
+  --model-name two_conv \
+  --dataset-split test \
+  --normal-count 200 \
+  --abnormal-count 200 \
+  --output-subdir client_batch400
 ```
 
 **Parameter Configuration Description**
 
 |   Parameter Name   | Type |                        Default Value                         |                         Description                          |
 | :----------------: | :--: | :----------------------------------------------------------: | :----------------------------------------------------------: |
-| `--processed-dir`  | str  |          `./examples/my_ecg001/processed_over_1to1`          |          Directory path of the preprocessed dataset          |
-| `--baseline-ckpt`  | str  | `./examples/my_ecg001/runs/exp_over009/model/train_baseline.pth` |      File path of the plaintext baseline model weights       |
-|    `--task-dir`    | str  |         `./examples/my_ecg001/runs/exp_over009/task`         |             Root directory path of the FHE task              |
+| `--processed-dir`  | str  |          `./examples/test_ecg/processed_over_1to1`           |          Directory path of the preprocessed dataset          |
+| `--baseline-ckpt`  | str  | `./examples/test_ecg/runs/exp_over/model/train_baseline.pth` |      File path of the plaintext baseline model weights       |
+|    `--task-dir`    | str  |           `./examples/test_ecg/runs/exp_over/task`           |             Root directory path of the FHE task              |
 |   `--model-name`   | str  |                          `two_conv`                          | Model name (options: `tiny_cnn`/`tiny_cnn8`/`two_conv`/`mlp_head`) |
 | `--dataset-split`  | str  |                            `test`                            |  Dataset split for sample selection (options: `val`/`test`)  |
-|  `--normal-count`  | int  |                             `5`                              |             Number of normal samples to extract              |
-| `--abnormal-count` | int  |                             `5`                              |            Number of abnormal samples to extract             |
-| `--output-subdir`  | str  |                       `client_batch10`                       | Name of the output subdirectory (created under the task-dir) |
+|  `--normal-count`  | int  |                            `200`                             |             Number of normal samples to extract              |
+| `--abnormal-count` | int  |                            `200`                             |            Number of abnormal samples to extract             |
+| `--output-subdir`  | str  |                      `client_batch400`                       | Name of the output subdirectory (created under the task-dir) |
 
-#### 3.6 Execute Batch Encrypted Inference and Result Summary
+## 3.7 Sample Ciphertext Inference
 
 ```
-python examples/my_ecg001/run_batch_fhe.py
+python examples/test_ecg/run_batch_fhe.py
 ```
 
 **Parameter Configuration Description**
 
-|  Parameter Name  | Type |                Default Value                 |                         Description                          |
-| :--------------: | :--: | :------------------------------------------: | :----------------------------------------------------------: |
-|   `--task-dir`   | str  | `./examples/my_ecg001/runs/exp_over009/task` |             Root directory path of the FHE task              |
-|    `--binary`    | str  |         `./build/examples/inference`         |          File path of the LattiAI inference binary           |
-|   `--threads`    | int  |                     `1`                      | Number of OpenMP threads for inference (recommended: CPU physical core count) |
-| `--input-subdir` | str  |               `client_batch10`               | Name of the input sample subdirectory (must match the output directory of prepare_ten_samples.py) |
+|  Parameter Name  | Type |              Default Value               |                         Description                          |
+| :--------------: | :--: | :--------------------------------------: | :----------------------------------------------------------: |
+|   `--task-dir`   | str  | `./examples/test_ecg/runs/exp_over/task` |             Root directory path of the FHE task              |
+|    `--binary`    | str  |       `./build/examples/inference`       |          File path of the LattiAI inference binary           |
+|   `--threads`    | int  |                   `1`                    | Number of OpenMP threads for inference (recommended: CPU physical core count) |
+| `--input-subdir` | str  |            `client_batch400`             | Name of the input sample subdirectory (must match the output directory of prepare_ten_samples.py) |
 
-## 4. Directory Structure
+# 4. Results Description
 
-```
-my_ecg001/
-├── __init__.py                 # Package initialization file, module import declaration
-├── augment.py                  # Customized data augmentation module for ECG signals
-├── dataset.py                  # PyTorch dataset loading and encapsulation module
-├── losses.py                   # Loss function module adapted for class imbalance
-├── model.py                    # Lightweight CNN model definition and construction module
-├── train.py                    # Main program for model training, FHE operator adaptation and export
-├── pick_plaintext_sample.py    # Inference sample selection and plaintext benchmark generation module
-├── prepare_ten_samples.py      # Batch test sample generation module
-├── run_fhe_once.py             # Single-sample encrypted inference wrapper script
-├── run_batch_fhe.py            # Batch sample encrypted inference and statistics script
-├── data_prepare_win.py         # Data preprocessing script
-└── utils_exp.py                # General utility function module for experiments
-```
+------
 
-## 5. Citation
+## 4.1 Plaintext Model Performance
 
-When using this dataset, please cite the original publication:
+**Overall Metrics**
 
-```
-Moody GB, Mark RG. The impact of the MIT-BIH Arrhythmia Database. IEEE Eng in Med and Biol 20(3):45-50 (May-June 2001). PMID: 11446209.
-```
+| Metric      | Value  |
+| :---------- | :----- |
+| Accuracy    | 0.9079 |
+| Weighted F1 | 0.9366 |
+| ROC-AUC     | 0.9438 |
+| PR-AUC      | 0.8133 |
 
-And the standard citation for PhysioNet:
+------
 
-```
-Goldberger, A., Amaral, L., Glass, L., Hausdorff, J., Ivanov, P. C., Mark, R., ... & Stanley, H. E. (2000). PhysioBank
-```
+### 4.1.1 Per-Class Metrics
+
+| Class    | Precision | Recall | F1-score | Support |
+| -------- | --------- | ------ | -------- | ------- |
+| Normal   | 0.9809    | 0.9428 | 0.9615   | 9009    |
+| Abnormal | 0.8350    | 0.8445 | 0.8249   | 1061    |
+
+------
+
+### 4.1.2 Confusion Matrix
+
+| Actual\Predicted | Normal | Abnormal |
+| ---------------- | ------ | -------- |
+| Normal           | 8494   | 515      |
+| Abnormal         | 165    | 896      |
+
+------
+
+## 4.2 FHE Inference Results
+
+### 4.2.1 Single Sample
+
+| Metric         | Value  |
+| -------------- | ------ |
+| Inference Time | ≈ 11s  |
+| Max Error      | 0.0023 |
+| Result         | PASS   |
+
+------
+
+### 4.2.2 200 Samples
+
+| Category                | Metric                         | Plaintext Model | FHE Encrypted Model |
+| :---------------------- | :----------------------------- | :-------------- | :------------------ |
+| **Overall Performance** | Accuracy                       | 86.00%          | 82.00%              |
+|                         | Macro F1                       | 85.96%          | 81.99%              |
+|                         | Weighted F1                    | 85.96%          | 81.99%              |
+| **Normal Class**        | Precision                      | 82.73%          | 80.77%              |
+|                         | Recall                         | 91.00%          | 84.00%              |
+|                         | F1-score                       | 86.67%          | 82.35%              |
+|                         | Support                        | 100             | 100                 |
+| **Abnormal Class**      | Precision                      | 90.00%          | 83.33%              |
+|                         | Recall                         | 81.00%          | 80.00%              |
+|                         | F1-score                       | 85.26%          | 81.63%              |
+|                         | Support                        | 100             | 100                 |
+| **Consistency Metric**  | Plaintext-Ciphertext Agreement | -               | 91.00%              |
+
+### 4.2.3 400 Samples
+
+| Category                | Metric                         | Plaintext Model | FHE Encrypted Model |
+| :---------------------- | :----------------------------- | :-------------- | :------------------ |
+| **Overall Performance** | Accuracy                       | 88.50%          | 83.50%              |
+|                         | Macro F1                       | 88.49%          | 83.50%              |
+|                         | Weighted F1                    | 88.49%          | 83.50%              |
+| **Normal Class**        | Precision                      | 85.98%          | 83.17%              |
+|                         | Recall                         | 92.00%          | 84.00%              |
+|                         | F1-score                       | 88.89%          | 83.58%              |
+|                         | Support                        | 200             | 200                 |
+| **Abnormal Class**      | Precision                      | 91.40%          | 83.84%              |
+|                         | Recall                         | 85.00%          | 83.00%              |
+|                         | F1-score                       | 88.08%          | 83.42%              |
+|                         | Support                        | 200             | 200                 |
+| **Consistency Metric**  | Plaintext-Ciphertext Agreement | -               | 91.00%              |
