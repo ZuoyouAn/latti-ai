@@ -121,7 +121,7 @@ def process_all_records(data_dir: str, records: list[str], beat_length: int, ima
             y_all.append(y_rec)
 
     if len(X_all) == 0:
-        raise RuntimeError('没有提取到任何样本，请检查数据路径')
+        raise RuntimeError('No samples were extracted, please check the data path ')
 
     X_all = np.concatenate(X_all, axis=0).astype(np.float32)
     y_all = np.concatenate(y_all, axis=0).astype(np.int64)
@@ -153,7 +153,7 @@ def undersample_train(X_train: np.ndarray, y_train: np.ndarray, seed: int, targe
         target = int(target_per_class)
 
     if target > n_normal or target > n_abnormal:
-        raise ValueError(f'欠采样目标超过当前训练集某类数量: target={target}, normal={n_normal}, abnormal={n_abnormal}')
+        raise ValueError(f'The number of under-sampling targets exceeds the quantity of a certain class in the current training set: target={target}, normal={n_normal}, abnormal={n_abnormal}')
 
     sel_normal = rng.choice(idx_normal, size=target, replace=False)
     sel_abnormal = rng.choice(idx_abnormal, size=target, replace=False)
@@ -221,10 +221,10 @@ def save_processed(save_dir: Path, X_train, y_train, X_val, y_val, X_test, y_tes
 
 def main():
     if abs(TRAIN_SIZE + VAL_SIZE + TEST_SIZE - 1.0) > 1e-8:
-        raise ValueError('TRAIN_SIZE + VAL_SIZE + TEST_SIZE 必须等于 1.0')
+        raise ValueError('TRAIN_SIZE + VAL_SIZE + TEST_SIZE must equal 1.0')
 
     if BEAT_LENGTH != IMAGE_SIZE * IMAGE_SIZE:
-        raise ValueError('BEAT_LENGTH 必须等于 IMAGE_SIZE * IMAGE_SIZE')
+        raise ValueError('BEAT_LENGTH must equal IMAGE_SIZE * IMAGE_SIZE')
 
     output_root = Path(OUTPUT_ROOT)
     output_root.mkdir(parents=True, exist_ok=True)
