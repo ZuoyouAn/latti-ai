@@ -56,9 +56,9 @@ def select_balanced_indices(y: np.ndarray, normal_count: int, abnormal_count: in
     idx_abnormal = np.where(y == 1)[0]
 
     if len(idx_normal) < normal_count:
-        raise ValueError(f'normal 样本不够，需要 {normal_count}，实际 {len(idx_normal)}')
+        raise ValueError(f'normal The sample is insufficient, need {normal_count}，actual {len(idx_normal)}')
     if len(idx_abnormal) < abnormal_count:
-        raise ValueError(f'abnormal 样本不够，需要 {abnormal_count}，实际 {len(idx_abnormal)}')
+        raise ValueError(f'abnormal The sample is insufficient, need {abnormal_count}，actual {len(idx_abnormal)}')
 
     selected = list(idx_normal[:normal_count]) + list(idx_abnormal[:abnormal_count])
     return selected
@@ -105,7 +105,7 @@ def main():
         label = int(y[global_idx])
 
         if x.shape != (1, 16, 16):
-            raise ValueError(f'样本形状必须是 (1,16,16)，当前是 {x.shape}，global_idx={global_idx}')
+            raise ValueError(f'The sample shape must be (1,16,16)，Currently is {x.shape}，global_idx={global_idx}')
 
         csv_name = f'sample_{local_id:02d}_idx_{global_idx}_label_{label}.csv'
         csv_path = inputs_dir / csv_name
