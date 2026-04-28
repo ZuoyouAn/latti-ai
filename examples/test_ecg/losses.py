@@ -40,4 +40,4 @@ def build_loss(loss_name='weighted_ce', class_weights=None, focal_gamma=2.0):
     if loss_name == 'focal':
         return FocalLoss(alpha=class_weights, gamma=focal_gamma, reduction='mean')
 
-    raise ValueError(f'不支持的 loss_name: {loss_name}')
+    raise ValueError(f'Not supported loss_name: {loss_name}')
