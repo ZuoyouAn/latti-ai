@@ -69,13 +69,13 @@ def main():
 
     idx = args.sample_index
     if idx < 0 or idx >= len(X_val):
-        raise IndexError(f'sample-index 越界: {idx}, 合法范围 [0, {len(X_val)-1}]')
+        raise IndexError(f'sample-index Cross the line: {idx}, Legal scope [0, {len(X_val)-1}]')
 
     x = X_val[idx]
     y = int(y_val[idx])
 
     if x.shape != (1, 16, 16):
-        raise ValueError(f'样本形状必须是 (1,16,16)，当前是 {x.shape}')
+        raise ValueError(f'The sample shape must be (1,16,16)，Currently is {x.shape}')
 
     csv_path = client_dir / args.output_name
     np.savetxt(csv_path, x[0], delimiter=',', fmt='%.10f')
