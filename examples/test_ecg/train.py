@@ -55,7 +55,7 @@ def get_poly_module(name: str):
         return RangeNormPoly2d
     if name == 'Simple_Polyrelu':
         return Simple_Polyrelu
-    raise ValueError(f'不支持的 poly module: {name}')
+    raise ValueError(f'Unsupported poly module: {name}')
 
 
 def compute_class_weights(y_train_path: str, num_classes: int):
