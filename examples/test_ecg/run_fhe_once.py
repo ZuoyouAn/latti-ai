@@ -25,7 +25,7 @@ def main():
 
     binary = Path(args.binary)
     if not binary.exists():
-        raise FileNotFoundError(f'找不到推理二进制: {binary}')
+        raise FileNotFoundError(f'Cannot find inference binary: {binary}')
 
     env = os.environ.copy()
     env['OMP_NUM_THREADS'] = str(args.threads)
