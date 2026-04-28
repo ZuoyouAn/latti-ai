@@ -58,10 +58,10 @@ def parse_vector_from_verification_table(text: str, field_name: str):
                 elif field_name == 'Plaintext':
                     values[idx] = plain_val
                 else:
-                    raise ValueError(f'未知 field_name: {field_name}')
+                    raise ValueError(f'Unknown field_name: {field_name}')
 
     if not values:
-        raise ValueError(f'无法从 Verification 表格中解析 {field_name} 向量')
+        raise ValueError(f'Unable to parse {field_name} vector from the Verification form')
 
     return [values[i] for i in sorted(values.keys())]
 
@@ -115,7 +115,7 @@ def main():
     task_dir = Path(args.task_dir)
     binary = Path(args.binary)
     if not binary.exists():
-        raise FileNotFoundError(f'找不到推理二进制: {binary}')
+        raise FileNotFoundError(f'Cannot find inference binary: {binary}')
 
     client_dir = task_dir / args.input_subdir
     inputs_dir = client_dir / 'inputs'
@@ -124,9 +124,9 @@ def main():
     plaintext_path = client_dir / 'plaintext_predictions.json'
 
     if not sample_list_path.exists():
-        raise FileNotFoundError(f'找不到样本列表: {sample_list_path}')
+        raise FileNotFoundError(f'Cannot find sample list: {sample_list_path}')
     if not plaintext_path.exists():
-        raise FileNotFoundError(f'找不到明文预测文件: {plaintext_path}')
+        raise FileNotFoundError(f'Cannot find plaintext prediction file: {plaintext_path}')
 
     sample_list = json.loads(sample_list_path.read_text(encoding='utf-8'))
     plaintext_items = json.loads(plaintext_path.read_text(encoding='utf-8'))
@@ -155,7 +155,7 @@ def main():
         csv_path = Path(item['csv_path'])
 
         if not csv_path.exists():
-            raise FileNotFoundError(f'找不到输入 CSV: {csv_path}')
+            raise FileNotFoundError(f'Cannot find input CSV: {csv_path}')
 
         cmd = [
             str(binary),
@@ -179,7 +179,7 @@ def main():
         (logs_dir / f'sample_{local_id:02d}.log').write_text(output, encoding='utf-8')
 
         if proc.returncode != 0:
-            raise RuntimeError(f'FHE 推理失败: local_id={local_id}, return_code={proc.returncode}')
+            raise RuntimeError(f'FHE inference failed: local_id={local_id}, return_code={proc.returncode}')
 
         enc_logits = parse_vector_from_verification_table(output, 'Encrypted')
         plain_logits_from_verify = parse_vector_from_verification_table(output, 'Plaintext')
@@ -238,7 +238,7 @@ def main():
         'plaintext_fhe_prediction_consistency': consistency
     }, ensure_ascii=False, indent=2))
 
-    print('\n保存文件:')
+    print('\nSave File:')
     print(client_dir / 'fhe_predictions.json')
     print(client_dir / 'fhe_compare_summary.json')
 
