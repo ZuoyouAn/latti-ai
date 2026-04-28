@@ -341,7 +341,6 @@ def main():
         info_over
     )
 
-    print('\n全部完成')
     print(processed_original_dir)
     print(processed_under_dir)
     print(processed_over_dir)
