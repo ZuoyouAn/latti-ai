@@ -209,7 +209,7 @@ python test_ecg/prepare_ten_samples.py \
 ## 3.7 Sample Ciphertext Inference
 
 ```
-python examples/test_ecg/run_batch_fhe.py
+python examples/test_ecg/run_fhe_batch10.py
 ```
 
 **Parameter Configuration Description**
