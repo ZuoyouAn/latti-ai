@@ -1,7 +1,8 @@
+import argparse
 import os
+import random
 import sys
 import time
-import argparse
 from pathlib import Path
 
 import numpy as np
@@ -21,41 +22,58 @@ enables privacy-preserving inference using Fully Homomorphic Encryption while ma
 classification accuracy.
 """
 
-#  Add project root directory to sys.path
-FILE_ROOT = Path(__file__).resolve().parent
-PROJECT_ROOT = FILE_ROOT.parent
+EXAMPLE_DIR = Path(__file__).resolve().parent
 
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
-if str(FILE_ROOT) not in sys.path:
-    sys.path.insert(0, str(FILE_ROOT))
+
+def find_project_root(start_dir: Path):
+    for path in (start_dir, *start_dir.parents):
+        if (path / 'training').is_dir() and (path / 'inference').is_dir():
+            return path
+    return start_dir.parent
+
+
+PROJECT_ROOT = find_project_root(EXAMPLE_DIR)
+for import_path in (PROJECT_ROOT, EXAMPLE_DIR):
+    path_str = str(import_path)
+    if path_str not in sys.path:
+        sys.path.insert(0, path_str)
 
 from dataset import ECGNpyDataset
 from model import build_model
 
-from training.nn_tools import (
-    replace_activation_with_poly,
-    replace_maxpool_with_avgpool,
-    export_to_onnx,
-    fuse_and_export_h5,
-)
-from training.nn_tools.activations import RangeNormPoly2d, Simple_Polyrelu
-
 
 def set_seed(seed=42):
-    import random
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
 
 
-def get_poly_module(name: str):
-    if name == 'RangeNormPoly2d':
-        return RangeNormPoly2d
-    if name == 'Simple_Polyrelu':
-        return Simple_Polyrelu
-    raise ValueError(f'Unsupported poly module: {name}')
+def load_poly_tools():
+    try:
+        from training.nn_tools import (
+            export_to_onnx,
+            fuse_and_export_h5,
+            replace_activation_with_poly,
+            replace_maxpool_with_avgpool,
+        )
+        from training.nn_tools.activations import RangeNormPoly2d, Simple_Polyrelu
+    except ModuleNotFoundError as exc:
+        raise ModuleNotFoundError(
+            'Could not import training.nn_tools. Run this script from the latti-ai '
+            'repository root, or make sure the repository root is on PYTHONPATH.'
+        ) from exc
+
+    return {
+        'export_to_onnx': export_to_onnx,
+        'fuse_and_export_h5': fuse_and_export_h5,
+        'replace_activation_with_poly': replace_activation_with_poly,
+        'replace_maxpool_with_avgpool': replace_maxpool_with_avgpool,
+        'poly_modules': {
+            'RangeNormPoly2d': RangeNormPoly2d,
+            'Simple_Polyrelu': Simple_Polyrelu,
+        },
+    }
 
 
 def compute_class_weights(y_train_path: str, num_classes: int):
@@ -134,12 +152,21 @@ def load_checkpoint(model, path: str, device: torch.device):
 
 
 def main():
+    default_run_dir = EXAMPLE_DIR / 'runs' / 'exp_over'
+    default_model_dir = default_run_dir / 'model'
+    default_task_server_dir = default_run_dir / 'task' / 'server'
+    default_processed_dir = EXAMPLE_DIR / 'data' / 'processed_over_1to1'
+
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--processed-dir', type=str, default='./test_ecg/processed_over_1to1')
+    parser.add_argument('--processed-dir', type=str, default=str(default_processed_dir))
     parser.add_argument('--num-classes', type=int, default=2)
-    parser.add_argument('--model-name', type=str, default='two_conv',
-                        choices=['tiny_cnn', 'tiny_cnn8', 'two_conv', 'mlp_head'])
+    parser.add_argument(
+        '--model-name',
+        type=str,
+        default='two_conv',
+        choices=['tiny_cnn', 'tiny_cnn8', 'two_conv', 'mlp_head'],
+    )
 
     parser.add_argument('--epochs', type=int, default=5)
     parser.add_argument('--batch-size', type=int, default=32)
@@ -148,9 +175,9 @@ def main():
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--torch-num-threads', type=int, default=1)
 
-    parser.add_argument('--output-dir', type=str, default='./test_ecg/runs/exp_over009/model')
-    parser.add_argument('--input-dir', type=str, default='./test_ecg/runs/exp_over009/model')
-    parser.add_argument('--export-dir', type=str, default='./test_ecg/runs/exp_over009/task/server')
+    parser.add_argument('--output-dir', type=str, default=str(default_model_dir))
+    parser.add_argument('--input-dir', type=str, default=str(default_model_dir))
+    parser.add_argument('--export-dir', type=str, default=str(default_task_server_dir))
     parser.add_argument('--pretrained', type=str, default='')
 
     parser.add_argument('--poly_model_convert', action='store_true')
@@ -160,7 +187,7 @@ def main():
         '--poly-module',
         type=str,
         default='RangeNormPoly2d',
-        choices=['RangeNormPoly2d', 'Simple_Polyrelu']
+        choices=['RangeNormPoly2d', 'Simple_Polyrelu'],
     )
 
     parser.add_argument('--input-shape', type=int, nargs=3, default=[1, 16, 16])
@@ -179,15 +206,15 @@ def main():
 
     device = torch.device('cpu')
     print(f'[Device] {device}')
-    print(f'[Model] 使用模型：{args.model_name}')
+    print(f'[Model] using {args.model_name}')
 
     train_set = ECGNpyDataset(
         x_path=os.path.join(args.processed_dir, 'X_train.npy'),
-        y_path=os.path.join(args.processed_dir, 'y_train.npy')
+        y_path=os.path.join(args.processed_dir, 'y_train.npy'),
     )
     val_set = ECGNpyDataset(
         x_path=os.path.join(args.processed_dir, 'X_val.npy'),
-        y_path=os.path.join(args.processed_dir, 'y_val.npy')
+        y_path=os.path.join(args.processed_dir, 'y_val.npy'),
     )
 
     train_loader = DataLoader(
@@ -195,14 +222,14 @@ def main():
         batch_size=args.batch_size,
         shuffle=True,
         num_workers=args.num_workers,
-        pin_memory=False
+        pin_memory=False,
     )
     val_loader = DataLoader(
         val_set,
         batch_size=args.batch_size,
         shuffle=False,
         num_workers=args.num_workers,
-        pin_memory=False
+        pin_memory=False,
     )
 
     model = build_model(num_classes=args.num_classes, model_name=args.model_name)
@@ -210,26 +237,28 @@ def main():
     if args.pretrained:
         load_checkpoint(model, args.pretrained, device)
 
+    poly_tools = None
     if args.poly_model_convert:
-        poly_cls = get_poly_module(args.poly_module)
+        poly_tools = load_poly_tools()
+        poly_cls = poly_tools['poly_modules'][args.poly_module]
 
         print('[Info] replace maxpool -> avgpool')
-        replace_maxpool_with_avgpool(model)
+        poly_tools['replace_maxpool_with_avgpool'](model)
 
         print('[Info] replace relu -> poly activation')
-        replace_activation_with_poly(
+        poly_tools['replace_activation_with_poly'](
             model,
             old_cls=nn.ReLU,
             new_module_factory=poly_cls,
             upper_bound=args.upper_bound,
-            degree=args.degree
+            degree=args.degree,
         )
 
     model = model.to(device)
 
     class_weights = compute_class_weights(
         y_train_path=os.path.join(args.processed_dir, 'y_train.npy'),
-        num_classes=args.num_classes
+        num_classes=args.num_classes,
     ).to(device)
 
     criterion = nn.CrossEntropyLoss(weight=class_weights)
@@ -256,8 +285,11 @@ def main():
                 'epoch': epoch,
                 'model': model.state_dict(),
                 'best_val_acc': best_val_acc,
-                'args': vars(args)
+                'args': vars(args),
             }
+
+    if best_state is None:
+        raise RuntimeError('No checkpoint was produced. Make sure --epochs is greater than 0.')
 
     elapsed = time.time() - start_time
     print(f'\nTraining finished in {elapsed / 60:.2f} min, best_val_acc={best_val_acc:.6f}')
@@ -279,7 +311,7 @@ def main():
         input_size = (1, c, h, w)
 
         print(f'[Export ONNX] {onnx_path}')
-        export_to_onnx(
+        poly_tools['export_to_onnx'](
             model,
             save_path=str(onnx_path),
             input_size=input_size,
@@ -287,17 +319,17 @@ def main():
             dynamic_batch=False,
             remove_identity=True,
             save_h5=False,
-            verbose=True
+            verbose=True,
         )
 
         print(f'[Export H5] {h5_path}')
-        fuse_and_export_h5(
+        poly_tools['fuse_and_export_h5'](
             model,
             h5_path=str(h5_path),
             upper_bound=args.upper_bound,
             degree=args.degree,
             eps=1e-3,
-            verbose=True
+            verbose=True,
         )
 
         print('\n[Done] Poly model export finished.')
