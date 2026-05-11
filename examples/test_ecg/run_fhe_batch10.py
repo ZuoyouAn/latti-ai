@@ -21,6 +21,7 @@ analysis for validating FHE-based privacy-preserving ECG classification.
 
 CLASS_NAMES = ['normal', 'abnormal']
 
+EXAMPLE_DIR = Path(__file__).resolve().parent
 
 def parse_vector_from_verification_table(text: str, field_name: str):
     """
@@ -106,10 +107,11 @@ def calc_metrics(y_true, y_pred):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--task-dir', type=str, default='./test_ecg/runs/exp_over009/task')
+    default_task_dir = EXAMPLE_DIR / 'runs' / 'exp_over' / 'task'
+    parser.add_argument('--task-dir', type=str, default=str(default_task_dir))
     parser.add_argument('--binary', type=str, default='./build/examples/inference')
     parser.add_argument('--threads', type=int, default=1)
-    parser.add_argument('--input-subdir', type=str, default='client_batch10')
+    parser.add_argument('--input-subdir', type=str, default='client_batch400')
     args = parser.parse_args()
 
     task_dir = Path(args.task_dir)
