@@ -29,7 +29,7 @@
 Install Python dependencies with:
 
 ```
-pip install -r examples/test_ecg01/requirements.txt
+pip install -r examples/test_ecg/requirements.txt
 ```
 
 ------
@@ -90,7 +90,7 @@ latti-ai library, official repository: [cipherflow-fhe/latti-ai: A framework for
 
 Reason: Prevent model bias toward the normal class while ensuring realistic evaluation.
 
-Model definition path: `examples/test_ecg01/model/model.py`.
+Model definition path: `examples/test_ecg/model/model.py`.
 
 # 3. Running Steps
 
@@ -105,15 +105,15 @@ Data Processing → Plaintext Training → FHE Adaptation → Model Compilation 
 ## 3.1 Data Processing
 
 ```
-python examples/test_ecg01/data_prepare.py \
+python examples/test_ecg/data_prepare.py \
   --data-dir /path/to/mit-bih-arrhythmia-database-1.0.0 \
-  --output-root ./examples/test_ecg01/data
+  --output-root ./examples/test_ecg/data
 ```
 
 Output:
 
 ```
-examples/test_ecg01/data/processed_over_1to1/
+examples/test_ecg/data/processed_over_1to1/
 ├── X_train.npy
 ├── y_train.npy
 ├── X_val.npy
@@ -126,12 +126,12 @@ examples/test_ecg01/data/processed_over_1to1/
 
 Note: Data processing can run on Windows or Linux. Pass local paths through command-line arguments and ensure paths match.
 
-Note: Due to GitHub file upload limits, the datasets used in this experiment have been uploaded to email. It is recommended to obtain the `processed_over_1to1.zip` file, extract it, and place it directly under `./examples/test_ecg01/data/processed_over_1to1`.。
+Note: Due to GitHub file upload limits, the datasets used in this experiment have been uploaded to email. It is recommended to obtain the `processed_over_1to1.zip` file, extract it, and place it directly under `./examples/test_ecg/data/processed_over_1to1`.。
 
 ## 3.2 Plaintext Model Training
 
 ```
-python examples/test_ecg01/train.py \
+python examples/test_ecg/train.py \
   --model-name two_conv \
   --epochs 20 \
   --batch-size 32 \
@@ -139,8 +139,8 @@ python examples/test_ecg01/train.py \
   --num-workers 4 \
   --torch-num-threads 4 \
   --num-classes 2 \
-  --processed-dir ./examples/test_ecg01/data/processed_over_1to1 \
-  --output-dir ./examples/test_ecg01/runs/exp_over/model \
+  --processed-dir ./examples/test_ecg/data/processed_over_1to1 \
+  --output-dir ./examples/test_ecg/runs/exp_over/model \
   --input-shape 1 16 16
 ```
 
@@ -149,19 +149,19 @@ python examples/test_ecg01/train.py \
 ## 3.3 FHE Model Adaptation (Poly Replacement)
 
 ```
-python examples/test_ecg01/train.py \
+python examples/test_ecg/train.py \
   --poly_model_convert \
   --model-name two_conv \
-  --pretrained ./examples/test_ecg01/runs/exp_over/model/train_baseline.pth \
+  --pretrained ./examples/test_ecg/runs/exp_over/model/train_baseline.pth \
   --epochs 3 \
   --batch-size 16 \
   --lr 0.0005 \
   --num-workers 4 \
   --torch-num-threads 4 \
   --num-classes 2 \
-  --processed-dir ./examples/test_ecg01/data/processed_over_1to1 \
-  --output-dir ./examples/test_ecg01/runs/exp_over/model \
-  --export-dir ./examples/test_ecg01/runs/exp_over/task/server \
+  --processed-dir ./examples/test_ecg/data/processed_over_1to1 \
+  --output-dir ./examples/test_ecg/runs/exp_over/model \
+  --export-dir ./examples/test_ecg/runs/exp_over/task/server \
   --input-shape 1 16 16 \
   --degree 4 \
   --upper-bound 3.0 \
@@ -174,8 +174,8 @@ python examples/test_ecg01/train.py \
 
 ```
 python training/run_compile.py \
-  --input ./examples/test_ecg01/runs/exp_over/model/trained_poly.onnx \
-  --output ./examples/test_ecg01/runs/exp_over \
+  --input ./examples/test_ecg/runs/exp_over/model/trained_poly.onnx \
+  --output ./examples/test_ecg/runs/exp_over \
   --style multiplexed
 ```
 
@@ -184,7 +184,7 @@ python training/run_compile.py \
 ## 3.5 Generate Execution Configuration
 
 ```
-python inference/interface/gen_mega_ag.py --task-dir ./examples/test_ecg01/runs/exp_over/task
+python inference/interface/gen_mega_ag.py --task-dir ./examples/test_ecg/runs/exp_over/task
 ```
 
 ------
@@ -192,10 +192,10 @@ python inference/interface/gen_mega_ag.py --task-dir ./examples/test_ecg01/runs/
 ## 3.6 Sample Plaintext Inference
 
 ```
-python examples/test_ecg01/prepare_ten_samples.py \
-  --processed-dir ./examples/test_ecg01/data/processed_over_1to1 \
-  --baseline-ckpt ./examples/test_ecg01/runs/exp_over/model/train_baseline.pth \
-  --task-dir ./examples/test_ecg01/runs/exp_over/task \
+python examples/test_ecg/prepare_plaintext_samples.py \
+  --processed-dir ./examples/test_ecg/data/processed_over_1to1 \
+  --baseline-ckpt ./examples/test_ecg/runs/exp_over/model/train_baseline.pth \
+  --task-dir ./examples/test_ecg/runs/exp_over/task \
   --model-name two_conv \
   --dataset-split test \
   --normal-count 200 \
@@ -207,9 +207,9 @@ python examples/test_ecg01/prepare_ten_samples.py \
 
 |   Parameter Name   | Type |                        Default Value                         |                         Description                          |
 | :----------------: | :--: | :----------------------------------------------------------: | :----------------------------------------------------------: |
-| `--processed-dir`  | str  |          `./examples/test_ecg01/data/processed_over_1to1`           |          Directory path of the preprocessed dataset          |
-| `--baseline-ckpt`  | str  | `./examples/test_ecg01/runs/exp_over/model/train_baseline.pth` |      File path of the plaintext baseline model weights       |
-|    `--task-dir`    | str  |           `./examples/test_ecg01/runs/exp_over/task`           |             Root directory path of the FHE task              |
+| `--processed-dir`  | str  |          `./examples/test_ecg/data/processed_over_1to1`           |          Directory path of the preprocessed dataset          |
+| `--baseline-ckpt`  | str  | `./examples/test_ecg/runs/exp_over/model/train_baseline.pth` |      File path of the plaintext baseline model weights       |
+|    `--task-dir`    | str  |           `./examples/test_ecg/runs/exp_over/task`           |             Root directory path of the FHE task              |
 |   `--model-name`   | str  |                          `two_conv`                          | Model name (options: `tiny_cnn`/`tiny_cnn8`/`two_conv`/`mlp_head`) |
 | `--dataset-split`  | str  |                            `test`                            |  Dataset split for sample selection (options: `val`/`test`)  |
 |  `--normal-count`  | int  |                            `200`                             |             Number of normal samples to extract              |
@@ -219,17 +219,17 @@ python examples/test_ecg01/prepare_ten_samples.py \
 ## 3.7 Sample Ciphertext Inference
 
 ```
-python examples/test_ecg01/run_fhe_batch10.py
+python examples/test_ecg/run_fhe_batch.py
 ```
 
 **Parameter Configuration Description**
 
 |  Parameter Name  | Type |              Default Value               |                         Description                          |
 | :--------------: | :--: | :--------------------------------------: | :----------------------------------------------------------: |
-|   `--task-dir`   | str  | `./examples/test_ecg01/runs/exp_over/task` |             Root directory path of the FHE task              |
+|   `--task-dir`   | str  | `./examples/test_ecg/runs/exp_over/task` |             Root directory path of the FHE task              |
 |    `--binary`    | str  |       `./build/examples/inference`       |          File path of the LattiAI inference binary           |
 |   `--threads`    | int  |                   `1`                    | Number of OpenMP threads for inference (recommended: CPU physical core count) |
-| `--input-subdir` | str  |            `client_batch400`             | Name of the input sample subdirectory (must match the output directory of prepare_ten_samples.py) |
+| `--input-subdir` | str  |            `client_batch400`             | Name of the input sample subdirectory (must match the output directory of prepare_plaintext_samples.py) |
 
 # 4. Results Description
 
