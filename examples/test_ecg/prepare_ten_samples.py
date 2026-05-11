@@ -15,11 +15,24 @@ and generates baseline plaintext predictions for all samples. It produces a samp
 sample tensors for subsequent encrypted inference verification and consistency analysis.
 """
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
+EXAMPLE_DIR = Path(__file__).resolve().parent
 
-from test_ecg.model import build_model
+
+def find_project_root(start_dir: Path):
+    for path in (start_dir, *start_dir.parents):
+        if (path / 'training').is_dir() and (path / 'inference').is_dir():
+            return path
+    return start_dir.parent
+
+
+PROJECT_ROOT = find_project_root(EXAMPLE_DIR)
+
+for import_path in (PROJECT_ROOT, EXAMPLE_DIR):
+    path_str = str(import_path)
+    if path_str not in sys.path:
+        sys.path.insert(0, path_str)
+
+from model import build_model
 
 CLASS_NAMES = ['normal', 'abnormal']
 
@@ -66,9 +79,13 @@ def select_balanced_indices(y: np.ndarray, normal_count: int, abnormal_count: in
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--processed-dir', type=str, default='./test_ecg/processed_over_1to1')
-    parser.add_argument('--baseline-ckpt', type=str, default='./test_ecg/runs/exp_over009/model/train_baseline.pth')
-    parser.add_argument('--task-dir', type=str, default='./test_ecg/runs/exp_over009/task')
+    default_run_dir = EXAMPLE_DIR / 'runs' / 'exp_over'
+    default_processed_dir = EXAMPLE_DIR / 'data' / 'processed_over_1to1'
+    default_model_dir = default_run_dir / 'model'
+    default_task_dir = default_run_dir / 'task'
+    parser.add_argument('--processed-dir', type=str, default=str(default_processed_dir))
+    parser.add_argument('--baseline-ckpt', type=str, default=str(default_model_dir / 'train_baseline.pth'))
+    parser.add_argument('--task-dir', type=str, default=str(default_task_dir))
     parser.add_argument('--model-name', type=str, default='two_conv')
     parser.add_argument('--dataset-split', type=str, default='test', choices=['val', 'test'])
     parser.add_argument('--normal-count', type=int, default=5)
