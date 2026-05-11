@@ -1,6 +1,17 @@
 import torch
 import torch.nn as nn
 
+"""
+ECG Classification Model Module.
+
+This module implements lightweight CNN architectures for ECG signal classification.
+The primary model used in this experiment is TinyECGTwoConv, which features a two-layer
+convolutional structure (1->4->8 channels) followed by global average pooling and a fully
+connected classifier. This design balances computational efficiency with classification
+performance, making it suitable for resource-constrained environments such as FHE-based
+encrypted inference. Additional model variants (TinyECGCNN, TinyECGCNN8, TinyECGMLPHead)
+are also provided for comparison and ablation studies.
+"""
 
 class TinyECGCNN(nn.Module):
     """Conv(1->4) + ReLU + GAP + FC."""
