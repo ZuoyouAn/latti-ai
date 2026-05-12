@@ -241,7 +241,7 @@ python examples/test_ecg/run_fhe_batch.py
 
 | Metric      | Value  |
 | :---------- | :----- |
-| Accuracy    | 0.9079 |
+| Accuracy    | 0.9325 |
 | Weighted F1 | 0.8932 |
 | ROC-AUC     | 0.9438 |
 | PR-AUC      | 0.8133 |
